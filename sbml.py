@@ -122,19 +122,19 @@ class ComparisonBinaryOpNode(BinaryOpNode):
         super().__init__(operand1, operand2, operator)
         
     def evaluate(self):
-        if _valid_types([self.operand1, self.operand2], [int, float]) or _valid_types([self.operand1, self.operand2], [str]):
+        if _valid_types([self.operand1.expr, self.operand2.expr], [int, float]) or _valid_types([self.operand1.expr, self.operand2.expr], [str]):
             if self.operator == '==':
-               return self.operand1 == self.operand2
+               return self.operand1.expr == self.operand2.expr
             elif self.operator == '<>':
-                return self.operand1 != self.operand2
+                return self.operand1.expr != self.operand2.expr
             elif self.operator == '>':
-                return self.operand1 > self.operand2
+                return self.operand1.expr > self.operand2.expr
             elif self.operator == '>=':
-                return self.operand1 >= self.operand2
+                return self.operand1.expr >= self.operand2.expr
             elif self.operator == '<':
-                return self.operand1 < self.operand2
+                return self.operand1.expr < self.operand2.expr
             elif self.operator == '<=':
-                return self.operand1 <= self.operand2                        
+                return self.operand1.expr <= self.operand2.expr
         raise SemanticError
 
     def __repr__(self):
@@ -434,7 +434,7 @@ def p_comparison(p):
          | expr LTOP expr
          | expr LTEOP expr
     '''        
-    p[0] = ComparisonBinaryOpNode(p[1], p[3], p[2])
+    p[0] = ComparisonBinaryOpNode(ExprNode([1]), ExprNode(p[3]), p[2])
 
 ## Lists
 
