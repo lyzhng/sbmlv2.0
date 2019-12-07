@@ -9,83 +9,81 @@ from sys import argv
 
 class SemanticError(RuntimeError):
     def __init__(self):
-        super(SemanticError, self).__init__("SEMANTIC ERROR")
+        super(SemanticError, self).__init__('SEMANTIC ERROR')
 
 class SyntaxError(Exception):
     def __init__(self):
-        super(SyntaxError, self).__init__("SYNTAX ERROR")
+        super(SyntaxError, self).__init__('SYNTAX ERROR')
         
-DEBUG = len(sys.argv) > 1 and sys.argv[1] == "--debug"
-
+DEBUG = len(sys.argv) > 1 and sys.argv[1] == '--debug'
 
 ## Globals
 
 assignments = {}
 
-class Node():
-    pass
+## Classes
 
-
-class Expr(Node):
+class ExprNode():
     def __init__(self, expr):
         self.expr = expr
         
+    def evaluate(self):
+        return self.expr
+    
     def __str__(self):
-        return f'{self.expr}'
+        return f'{self.evaluate()}'
+    
+    def __repr__(self):
+        return f'{self.evaluate()}'
 
-class Variable(Expr):
-    def __init__(self, var_name):
-        self.var_name = var_name
 
+# class VariableNode(ExprNode):
+#     def __init__(self, var_name):
+#         self.var_name = var_name
+
+#     def __str__(self):
+#         return f'{self.var_name}'
+    
+#     def __repr__(self):
+#         return f'{self.var_name}'
+
+class ListNode(ExprNode):
+    def __init__(self, lst):
+        self.lst = lst
+    
+    def evaluate(self):
+        for item in self.lst:
+            item.evaluate()
+            
     def __str__(self):
-        return 'Variable'
+        return f'{self.lst}'
+    
+    def __repr__(self):
+        return f'{self.lst}'
 
-class String(Expr):
-    def __init__(self, str_value):
-        self.str_value = str_value
-
+class TupleNode(ExprNode):
+    def __init__(self, tups):
+        self.tups = tups
+        
+    def evaluate(self):
+        for item in self.tups:
+            item.evaluate()
+            
     def __str__(self):
-        return 'String'
-
-class Boolean(Expr):
-    def __init__(self, bool_value):
-        self.bool_value = bool_value
-
-    def __str__(self):
-        return 'Boolean'
-
-class Integer(Expr):
-    def __init__(self, int_value):
-        self.int_value = int_value
-
-    def __str__(self):
-        return 'Integer'
-
-class List(Expr):
-    pass
-
-
-class Tuple(Expr):
-    pass
-
-
-class Real(Expr):
-    def __init__(self, real_value):
-        self.real_value = real_value
+        return f'{self.tups}'
+    
+    def __repr__(self):
+        return f'{self.tups}'
 
     
-class BinaryOp(Expr):
-
+class BinaryOpNode(ExprNode):
     def __init__(self, operand1, operand2, operator):
         self.operand1 = operand1
         self.operand2 = operand2
         self.operator = operator
         
     def evaluate(self):
-        if self.operator == '=':
-            assignments[self.operand1] = self.operand2
-            return
-        elif self.operator == '+':
+        if self.operator == '+':
             both_numbers = _valid_types([self.operand1, self.operand2], [int, float])
             both_strings = _valid_types([self.operand1, self.operand2], [str])
             both_lists = _valid_types([self.operand1, self.operand2], [list])
@@ -131,9 +129,15 @@ class BinaryOp(Expr):
         raise SemanticError  
     
     def __str__(self):
-        return f'{self.operand1} {self.operator} {self.operand2}'
+        # return f'{self.operand1} {self.operator} {self.operand2}'
+        return f'{self.evaluate()}'
 
-class ComparisonBinaryOp(BinaryOp):
+    def __repr__(self):
+        # return f'{self.operand1} {self.operator} {self.operand2}'
+        return f'{self.evaluate()}'
+
+
+class ComparisonBinaryOpNode(BinaryOpNode):
     def __init__(self, operand1, operand2, operator):
         super().__init__(operand1, operand2, operator)
         
@@ -153,7 +157,15 @@ class ComparisonBinaryOp(BinaryOp):
                 return self.operand1 <= self.operand2                        
         raise SemanticError
 
-class UnaryOp(Expr):
+    def __str__(self):
+        # return f'{self.operand1} {self.operator} {self.operand2}'
+        return f'{self.evaluate()}'
+
+    def __repr__(self):
+        # return f'{self.operand1} {self.operator} {self.operand2}'
+        return f'{self.evaluate()}'
+
+class UnaryOpNode(ExprNode):
     def __init__(self, operand, operator):
         self.operand = operand
         self.operator = operator
@@ -165,41 +177,111 @@ class UnaryOp(Expr):
         elif self.operator == '-':
             if _valid_types([self.operand], [int, float]):
                 return self.operand * -1
-                
+            
+    def __str__(self):
+        return f'{self.evaluate()}'
+    
+    def __repr__(self):
+        return f'{self.evaluate()}'
+      
+           
+class StatementNode():
+    def __init__(self, stmt):
+        self.stmt = stmt
+    
+    def evaluate():
+        pass
+
+    def __str__(self):
+        return f'{self.stmt}'
+
+    def __repr__(self):
+        return f'{self.stmt}'
+
+class AssignmentNode(StatementNode):
+    def __init__(self, var_name, value):
+        self.var_name = var_name
+        self.value = value
         
-tokens = (
-    'VARIABLE',
-    'INTEGER',
-    'REAL',
-    'BOOLEAN',
-    'STRING',
-    'LPAREN',
-    'RPAREN',
+    def evaluate(self):
+        assignments[var_name] = value
+
+class IfElseNode(StatementNode):
+    def __init__(self, condition, if_block, else_block):
+        self.condition = condition
+        self.if_block = if_block
+        self.else_block = else_block
+        
+    def evaluate(self):
+        if self.condition: 
+            self.if_block.evaluate()
+        else:
+            self.else_block.evaluate()
+
+
+class IfNode(StatementNode):
+    def __init__(self, condition, block):
+        self.condition = condition
+        self.block = block
+    
+    def evaluate(self):
+        if self.condition.evaluate():
+            self.block.evaluate()
+
+
+class BlockNode(StatementNode):
+    def __init__(self, statements):
+        self.statements = statements
+        
+    def evaluate(self):
+        for s in self.statements:
+            s.evaluate()
+
+
+class WhileNode(StatementNode):
+    def __init__(self, condition, block):
+        self.condition = condition
+        self.block = block
+
+    def evaluate(self):
+        while self.condition.evaluate():
+            self.block.evaluate()
+
+
+## Print
+
+class PrintNode(StatementNode):
+    def __init__(self, expr):
+        self.expr = expr
+    
+    def evaluate(self):
+        evaluated = self.expr.evaluate()
+        print(evaluated)
+
+## Tokens
+
+reserved = {
+    'if' : 'IF',
+    'else' : 'ELSE',
+    'while' : 'WHILE',
+    'print': 'PRINT'
+ }
+
+tokens = [
+    # 'VARIABLE',
+    'INTEGER', 'REAL', 'BOOLEAN', 'STRING',
+    'LPAREN', 'RPAREN',
     'HASH',
-    'LBRACKET',
-    'RBRACKET',
-    'INTDIVOP',
-    'MULOP',
-    'EXPOP',
-    'DIVOP',
-    'MODOP',
-    'PLUSOP',
-    'MINUSOP',
-    'INOP',
+    'LBRACKET', 'RBRACKET',
+    'LBRACE', 'RBRACE',
+    'INTDIVOP', 'MULOP', 'EXPOP', 'DIVOP', 'MODOP', 'PLUSOP', 'MINUSOP',
+    'INOP', 'CONSOP',
     'NOTOP',
-    'CONJUNCTIONOP',
-    'DISJUNCTIONOP',
-    'LTOP',
-    'LTEOP',
-    'EQOP',
-    'NEQOP',
-    'GTEOP',
-    'GTOP',
-    'CONSOP',
-    'COMMA',
-    'SEMICOLON',
-    'ASSIGNOP'
-) 
+    'CONJUNCTIONOP', 'DISJUNCTIONOP',
+    'LTOP', 'LTEOP', 'EQOP', 'NEQOP', 'GTEOP', 'GTOP',
+    'COMMA', 'SEMICOLON',
+    'ASSIGNOP',
+ ] + list(reserved.values())
 
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
@@ -227,13 +309,19 @@ t_COMMA = r'\,'
 t_SEMICOLON = r'\;'
 t_HASH = r'\#'
 t_ASSIGNOP = r'\='
+t_LBRACE = r'\{'
+t_RBRACE = r'\}'
+t_WHILE = r'while'
+t_IF = r'if'
+t_ELSE = r'else'
+t_PRINT = r'print'
 
 t_ignore = ' \t'
 
-def t_VARIABLE(t):
-    r'[a-zA-Z][a-zA-Z0-9_]*'
-    t.value = t.value
-    return t
+# def t_VARIABLE(t):
+#     r'[a-zA-Z][a-zA-Z0-9_]*'
+#     t.value = t.value
+#     return t
     
 ## Data types
 
@@ -273,14 +361,36 @@ lexer = lex.lex()
     
 ## Start statement    
     
-def p_expr(p):
+def p_start(p):
+    'start : block'
+    p[0] = p[1]
+    
+def p_block(p):
+    'block : LBRACE stmts RBRACE'
+    p[0] = p[2]
+
+def p_stmts(p):
+    '''
+    stmts : stmt stmts
+          | block stmts
+          | stmt
+    '''
+    if len(p) == 3:
+        p[0] = [p[1]] + [p[3]]
+    if len(p) == 2:
+        p[0] = p[1]
+
+def p_stmt(p):
     'stmt : expr SEMICOLON'
-    p[0] = p[1]    
+    p[0] = ExprNode(p[1])
     
 def p_paren(p):
     'expr : LPAREN expr RPAREN'
     p[0] = p[2]      
     
+def p_assign(p):
+    pass
+
 ## Wherever expr leads to... terminals and nested expressions 
     
 def p_term(p):
@@ -294,19 +404,19 @@ def p_term(p):
          | listindex
          | tupindex
     '''
-    p[0] = Expr(p[1])
-          
+    p[0] = p[1]
+        
 ## Unary operations       
            
 def p_not(p):
     'expr : NOTOP expr'
-    p[0] = UnaryOp(p[2], p[1])
+    p[0] = UnaryOpNode(p[2], p[1])
        
 def p_uminus(p):
     'expr : MINUSOP expr %prec UMINUS'
-    p[0] = UnaryOp(p[2], p[1])     
+    p[0] = UnaryOpNode(p[2], p[1])     
        
-## Binary operations              
+## Binary operations
        
 def p_binop(p):
     '''
@@ -321,9 +431,8 @@ def p_binop(p):
          | expr DISJUNCTIONOP expr
          | expr INOP expr
          | expr CONSOP expr
-         | VARIABLE ASSIGNOP expr
     '''
-    p[0] = BinaryOp(p[1], p[3], p[2])
+    p[0] = BinaryOpNode(p[1], p[3], p[2])
        
 def p_comparison(p):
     '''
@@ -334,7 +443,7 @@ def p_comparison(p):
          | expr LTOP expr
          | expr LTEOP expr
     '''        
-    p[0] = ComparisonBinaryOp(p[1], p[3], p[2])
+    p[0] = ComparisonBinaryOpNode(p[1], p[3], p[2])
 
 ## Lists
 
@@ -344,9 +453,9 @@ def p_list(p):
          | LBRACKET RBRACKET
     '''
     if len(p) == 4:
-        p[0] = p[2]
+        p[0] = ListNode(p[2])
     else:
-        p[0] = [] 
+        p[0] = ListNode([])
         
 def p_listitems(p):
     '''
@@ -354,13 +463,14 @@ def p_listitems(p):
               | listitem
     '''
     if len(p) == 2:
+        # convert to actual type node
         p[0] = p[1]
     else:
-        p[0] = p[1] + p[3]   
+        p[0] = p[1] + p[3]
 
 def p_listitem(p):
     'listitem : expr'
-    p[0] = [p[1]]
+    p[0] = [ExprNode(p[1])]
 
 def p_genindex(p):
     '''
@@ -404,7 +514,7 @@ def p_tupitems(p):
                 
 def p_tupitem(p):
     'tupitem : expr'
-    p[0] = [p[1]]
+    p[0] = [ExprNode(p[1])]
     
 def p_tupindex(p):
     '''
@@ -414,11 +524,29 @@ def p_tupindex(p):
     if len(p) == 6:
         if p[2] <= 0 or p[2] > len(p[4]):
             raise SemanticError
-        p[0] = p[4][p[2]-1]
+        p[0] = p[4][p[2] - 1]
     else:
         if p[2] <= 0 or p[2] > len(p[3]):
             raise SemanticError
-        p[0] = p[3][p[2]-1]
+        p[0] = p[3][p[2] - 1]
+
+## Conditionals
+
+def p_if(p):
+    'stmt : IF expr block'
+    p[0] = IfNode(ExprNode(p[2]), BlockNode(p[3]))
+
+def p_ifelse(p):
+    'stmt : IF expr block ELSE block'
+    p[0] = IfElseNode(ExprNode(p[2]), BlockNode(p[3]), BlockNode(p[5]))
+
+def p_while(p):
+    'stmt : WHILE expr block'
+    p[0] = WhileNode(ExprNode(p[2], BlockNode(p[3])))
+
+def p_print(p):
+    'stmt : PRINT LPAREN expr RPAREN'
+    p[0] = PrintNode(ExprNode(p[3]))
 
 def _valid_types(arguments, types):
     """ Check if all the arguments are in the types list """
@@ -430,6 +558,7 @@ def _valid_types(arguments, types):
 ## Parsing error
 
 def p_error(p):
+    print(p)
     raise SyntaxError
 
 ## Precedence
