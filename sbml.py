@@ -26,26 +26,18 @@ assignments = {}
 class ExprNode():
     def __init__(self, expr):
         self.expr = expr
-        
+
     def evaluate(self):
         return self.expr
     
-    def __str__(self):
-        return f'{self.evaluate()}'
-    
     def __repr__(self):
-        return f'{self.evaluate()}'
+        return f'<__main__.ExprNode: expr={self.expr}'
 
-
+    
 # class VariableNode(ExprNode):
 #     def __init__(self, var_name):
 #         self.var_name = var_name
 
-#     def __str__(self):
-#         return f'{self.var_name}'
-    
-#     def __repr__(self):
-#         return f'{self.var_name}'
 
 class ListNode(ExprNode):
     def __init__(self, lst):
@@ -55,11 +47,8 @@ class ListNode(ExprNode):
         for item in self.lst:
             item.evaluate()
             
-    def __str__(self):
-        return f'{self.lst}'
-    
     def __repr__(self):
-        return f'{self.lst}'
+        return f'<__main__.ListNode: lst={self.lst}'
 
 class TupleNode(ExprNode):
     def __init__(self, tups):
@@ -68,13 +57,9 @@ class TupleNode(ExprNode):
     def evaluate(self):
         for item in self.tups:
             item.evaluate()
-            
-    def __str__(self):
-        return f'{self.tups}'
-    
-    def __repr__(self):
-        return f'{self.tups}'
 
+    def __repr__(self):
+        return f'<__main__.TupleNode: tups={self.tups}'
     
 class BinaryOpNode(ExprNode):
     def __init__(self, operand1, operand2, operator):
@@ -84,57 +69,52 @@ class BinaryOpNode(ExprNode):
         
     def evaluate(self):
         if self.operator == '+':
-            both_numbers = _valid_types([self.operand1, self.operand2], [int, float])
-            both_strings = _valid_types([self.operand1, self.operand2], [str])
-            both_lists = _valid_types([self.operand1, self.operand2], [list])
+            both_numbers = _valid_types([self.operand1.expr, self.operand2.expr], [int, float])
+            both_strings = _valid_types([self.operand1.expr, self.operand2.expr], [str])
+            both_lists = _valid_types([self.operand1.expr, self.operand2.expr], [list])
             if both_numbers or both_strings or both_lists:
-                return self.operand1 + self.operand2
+                return self.operand1.expr + self.operand2.expr
         elif self.operator == '-':
-            if _valid_types([self.operand1, self.operand2], [int, float]):
-                return self.operand1 - self.operand2
+            if _valid_types([self.operand1.expr, self.operand2.expr], [int, float]):
+                return self.operand1.expr - self.operand2.expr
         elif self.operator == '*':
-            if _valid_types([self.operand1, self.operand2], [int, float]):
-                return self.operand1 * self.operand2
+            if _valid_types([self.operand1.expr, self.operand2.expr], [int, float]):
+                return self.operand1.expr * self.operand2.expr
         elif self.operator == '/':
-            if _valid_types([self.operand1, self.operand2], [int, float]):
-                if self.operand2 == 0:
+            if _valid_types([self.operand1.expr, self.operand2.expr], [int, float]):
+                if self.operand2.expr == 0:
                     raise SemanticError
-                return self.operand1 / self.operand2
+                return self.operand1.expr / self.operand2.expr
         elif self.operator == 'div':
-            if _valid_types([self.operand1, self.operand2], [int]):
-                if self.operand2 == 0:
+            if _valid_types([self.operand1.expr, self.operand2.expr], [int]):
+                if self.operand2.expr == 0:
                     raise SemanticError
-                return self.operand1 // self.operand2
+                return self.operand1.expr // self.operand2.expr
         elif self.operator == 'mod':
-            if _valid_types([self.operand1, self.operand2], [int]):
-                return self.operand1 % self.operand2
+            if _valid_types([self.operand1.expr, self.operand2.expr], [int]):
+                return self.operand1.expr % self.operand2.expr
         elif self.operator == '**':
-            if _valid_types([self.operand1, self.operand2], [int, float]):
-                return pow(self.operand1, self.operand2)
+            if _valid_types([self.operand1.expr, self.operand2.expr], [int, float]):
+                return pow(self.operand1.expr, self.operand2.expr)
         elif self.operator == 'andalso':
-            if _valid_types([self.operand1, self.operand2], [bool]):
-                return self.operand1 and self.operand2
+            if _valid_types([self.operand1.expr, self.operand2.expr], [bool]):
+                return self.operand1.expr and self.operand2.expr
         elif self.operator == 'orelse':
-            if _valid_types([self.operand1, self.operand2], [bool]):
-                return self.operand1 or self.operand2
+            if _valid_types([self.operand1.expr, self.operand2.expr], [bool]):
+                return self.operand1.expr or self.operand2.expr
         elif self.operator == 'in':
-            both_strings = _valid_types([self.operand1, self.operand2], [str])
-            valid_operand1 = _valid_types([self.operand1], [int, float, bool, str, list, tuple])
-            valid_operand2 = _valid_types([self.operand2], [list])
+            both_strings = _valid_types([self.operand1.expr, self.operand2.expr], [str])
+            valid_operand1 = _valid_types([self.operand1.expr], [int, float, bool, str, list, tuple])
+            valid_operand2 = _valid_types([self.operand2.expr], [list])
             if (valid_operand1 and valid_operand2) or both_strings:
-                return self.operand1 in self.operand2
+                return self.operand1.expr in self.operand2.expr
         elif self.operator == '::':
-            if _valid_types([self.operand1], [int, float, bool, str, list, tuple]) and _valid_types([self.operand2], [list]):
-               return [self.operand1] + self.operand2
+            if _valid_types([self.operand1.expr], [int, float, bool, str, list, tuple]) and _valid_types([self.operand2.expr], [list]):
+               return [self.operand1.expr] + self.operand2.expr
         raise SemanticError  
-    
-    def __str__(self):
-        # return f'{self.operand1} {self.operator} {self.operand2}'
-        return f'{self.evaluate()}'
 
     def __repr__(self):
-        # return f'{self.operand1} {self.operator} {self.operand2}'
-        return f'{self.evaluate()}'
+        return f'<__main__.BinaryOpNode: operand1={self.operand1}, operand2={self.operand2}, operator={self.operator}'
 
 
 class ComparisonBinaryOpNode(BinaryOpNode):
@@ -157,13 +137,8 @@ class ComparisonBinaryOpNode(BinaryOpNode):
                 return self.operand1 <= self.operand2                        
         raise SemanticError
 
-    def __str__(self):
-        # return f'{self.operand1} {self.operator} {self.operand2}'
-        return f'{self.evaluate()}'
-
     def __repr__(self):
-        # return f'{self.operand1} {self.operator} {self.operand2}'
-        return f'{self.evaluate()}'
+        return f'<__main__.BinaryOpNode: operand1={self.operand1}, operand2={self.operand2}, operator={self.operator}'
 
 class UnaryOpNode(ExprNode):
     def __init__(self, operand, operator):
@@ -177,36 +152,23 @@ class UnaryOpNode(ExprNode):
         elif self.operator == '-':
             if _valid_types([self.operand], [int, float]):
                 return self.operand * -1
-            
-    def __str__(self):
-        return f'{self.evaluate()}'
-    
-    def __repr__(self):
-        return f'{self.evaluate()}'
       
-           
-class StatementNode():
-    def __init__(self, stmt):
-        self.stmt = stmt
-    
-    def evaluate():
-        pass
-
-    def __str__(self):
-        return f'{self.stmt}'
-
     def __repr__(self):
-        return f'{self.stmt}'
-
-class AssignmentNode(StatementNode):
+        return f'<__main__.UnaryOpNode: operand={self.operand}, operator={self.operator}'
+           
+class AssignmentNode():
     def __init__(self, var_name, value):
         self.var_name = var_name
         self.value = value
         
     def evaluate(self):
         assignments[var_name] = value
+        
+    def __repr__(self):
+        return f'<__main__.AssignmentNode: var_name={self.var_name}, value={self.value}'
+    
 
-class IfElseNode(StatementNode):
+class IfElseNode():
     def __init__(self, condition, if_block, else_block):
         self.condition = condition
         self.if_block = if_block
@@ -218,8 +180,10 @@ class IfElseNode(StatementNode):
         else:
             self.else_block.evaluate()
 
-
-class IfNode(StatementNode):
+    def __repr__(self):
+        return f'<__main__.IfElseNode: condition={self.condition}, if_block={self.if_block}, else_block={self.else_block}'
+    
+class IfNode():
     def __init__(self, condition, block):
         self.condition = condition
         self.block = block
@@ -228,17 +192,22 @@ class IfNode(StatementNode):
         if self.condition.evaluate():
             self.block.evaluate()
 
+    def __repr__(self):
+        return f'<__main__.IfNode: condition={self.condition}, block={self.block}'
 
-class BlockNode(StatementNode):
+class BlockNode():
     def __init__(self, statements):
         self.statements = statements
         
     def evaluate(self):
         for s in self.statements:
             s.evaluate()
+            
+    def __repr__(self):
+        return f'<__main__.BlockNode: statements={self.statements}'
 
 
-class WhileNode(StatementNode):
+class WhileNode():
     def __init__(self, condition, block):
         self.condition = condition
         self.block = block
@@ -247,16 +216,21 @@ class WhileNode(StatementNode):
         while self.condition.evaluate():
             self.block.evaluate()
 
-
+    def __repr__(self):
+        return f'<__main__.WhileNode: condition={self.condition}, block={self.block}'
+    
 ## Print
 
-class PrintNode(StatementNode):
+class PrintNode():
     def __init__(self, expr):
         self.expr = expr
     
     def evaluate(self):
         evaluated = self.expr.evaluate()
         print(evaluated)
+
+    def __repr__(self):
+        return f'<__main__.PrintNode: expr={self.expr}'
 
 ## Tokens
 
@@ -383,10 +357,27 @@ def p_stmts(p):
 def p_stmt(p):
     'stmt : expr SEMICOLON'
     p[0] = ExprNode(p[1])
+
+def p_if(p):
+    'stmt : IF expr block'
+    p[0] = IfNode(ExprNode(p[2]), BlockNode(p[3]))
+
+def p_ifelse(p):
+    'stmt : IF expr block ELSE block'
+    p[0] = IfElseNode(ExprNode(p[2]), BlockNode(p[3]), BlockNode(p[5]))
+
+def p_while(p):
+    'stmt : WHILE expr block'
+    p[0] = WhileNode(ExprNode(p[2]), BlockNode(p[3]))
+
+def p_print(p):
+    'stmt : PRINT LPAREN expr RPAREN SEMICOLON'
+    p[0] = PrintNode(ExprNode(p[3]))
+    
     
 def p_paren(p):
     'expr : LPAREN expr RPAREN'
-    p[0] = p[2]      
+    p[0] = p[2]
     
 def p_assign(p):
     pass
@@ -432,7 +423,7 @@ def p_binop(p):
          | expr INOP expr
          | expr CONSOP expr
     '''
-    p[0] = BinaryOpNode(p[1], p[3], p[2])
+    p[0] = BinaryOpNode(ExprNode(p[1]), ExprNode(p[3]), p[2])
        
 def p_comparison(p):
     '''
@@ -530,24 +521,6 @@ def p_tupindex(p):
             raise SemanticError
         p[0] = p[3][p[2] - 1]
 
-## Conditionals
-
-def p_if(p):
-    'stmt : IF expr block'
-    p[0] = IfNode(ExprNode(p[2]), BlockNode(p[3]))
-
-def p_ifelse(p):
-    'stmt : IF expr block ELSE block'
-    p[0] = IfElseNode(ExprNode(p[2]), BlockNode(p[3]), BlockNode(p[5]))
-
-def p_while(p):
-    'stmt : WHILE expr block'
-    p[0] = WhileNode(ExprNode(p[2], BlockNode(p[3])))
-
-def p_print(p):
-    'stmt : PRINT LPAREN expr RPAREN'
-    p[0] = PrintNode(ExprNode(p[3]))
-
 def _valid_types(arguments, types):
     """ Check if all the arguments are in the types list """
     for arg in arguments:
@@ -590,7 +563,7 @@ while True:
         break
     if not s:
         continue
-    result = parser.parse(s, debug=True)
+    result = parser.parse(s, debug=DEBUG)
     print(f"RESULT: {result}")
 
 # FOR SUBMISSION
