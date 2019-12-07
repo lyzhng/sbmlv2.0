@@ -28,15 +28,32 @@ class ExprNode():
         self.expr = expr
 
     def evaluate(self):
-        return self.expr
+        if type(self.expr) == str:
+            single_quote = self.expr.startswith('\'') and self.expr.endswith('\'')
+            double_quote = self.expr.startswith('\"') and self.expr.endswith('\"')
+            if single_quote or double_quote: # actual string
+                return self.expr[1:-1]
+            else: # variable
+                if self.expr in assignments:
+                    return assignments[self.expr]
+                else:
+                    raise SemanticError
     
     def __repr__(self):
-        return f'<__main__.ExprNode: expr={self.expr}'
+        return f'ExprNode(expr={self.expr})'
 
     
-# class VariableNode(ExprNode):
-#     def __init__(self, var_name):
-#         self.var_name = var_name
+class VariableNode(ExprNode):
+    def __init__(self, var_name, value):
+        self.var_name = var_name
+        self.value = value
+        
+    def evaluate(self):
+        assignments[var_name] = value
+        return assignments[var_name]
+        
+    def __repr__(self):
+        return f'VariableNode(var_name={self.var_name}, value={self.value})'
 
 
 class ListNode(ExprNode):
@@ -48,7 +65,7 @@ class ListNode(ExprNode):
             item.evaluate()
             
     def __repr__(self):
-        return f'<__main__.ListNode: lst={self.lst}'
+        return f'ListNode(lst={self.lst})'
 
 class TupleNode(ExprNode):
     def __init__(self, tups):
@@ -59,7 +76,7 @@ class TupleNode(ExprNode):
             item.evaluate()
 
     def __repr__(self):
-        return f'<__main__.TupleNode: tups={self.tups}'
+        return f'TupleNode(tups={self.tups})'
     
 class BinaryOpNode(ExprNode):
     def __init__(self, operand1, operand2, operator):
@@ -111,10 +128,14 @@ class BinaryOpNode(ExprNode):
         elif self.operator == '::':
             if _valid_types([self.operand1.expr], [int, float, bool, str, list, tuple]) and _valid_types([self.operand2.expr], [list]):
                return [self.operand1.expr] + self.operand2.expr
+        elif self.operator == 'listindex':
+            return self.operand1.lst[self.operand2.expr]
+        elif self.operator == 'tupindex':
+            return self.operand1.tups[self.operand2.expr]
         raise SemanticError  
 
     def __repr__(self):
-        return f'<__main__.BinaryOpNode: operand1={self.operand1}, operand2={self.operand2}, operator={self.operator}'
+        return f'BinaryOpNode(operand1={self.operand1}, operand2={self.operand2}, operator={self.operator})'
 
 
 class ComparisonBinaryOpNode(BinaryOpNode):
@@ -138,7 +159,7 @@ class ComparisonBinaryOpNode(BinaryOpNode):
         raise SemanticError
 
     def __repr__(self):
-        return f'<__main__.BinaryOpNode: operand1={self.operand1}, operand2={self.operand2}, operator={self.operator}'
+        return f'BinaryOpNode(operand1={self.operand1}, operand2={self.operand2}, operator={self.operator})'
 
 class UnaryOpNode(ExprNode):
     def __init__(self, operand, operator):
@@ -154,18 +175,7 @@ class UnaryOpNode(ExprNode):
                 return self.operand * -1
       
     def __repr__(self):
-        return f'<__main__.UnaryOpNode: operand={self.operand}, operator={self.operator}'
-           
-class AssignmentNode():
-    def __init__(self, var_name, value):
-        self.var_name = var_name
-        self.value = value
-        
-    def evaluate(self):
-        assignments[var_name] = value
-        
-    def __repr__(self):
-        return f'<__main__.AssignmentNode: var_name={self.var_name}, value={self.value}'
+        return f'UnaryOpNode(operand={self.operand}, operator={self.operator})'
     
 
 class IfElseNode():
@@ -175,13 +185,13 @@ class IfElseNode():
         self.else_block = else_block
         
     def evaluate(self):
-        if self.condition: 
+        if self.condition.evaluate(): 
             self.if_block.evaluate()
         else:
             self.else_block.evaluate()
 
     def __repr__(self):
-        return f'<__main__.IfElseNode: condition={self.condition}, if_block={self.if_block}, else_block={self.else_block}'
+        return f'IfElseNode(condition={self.condition}, if_block={self.if_block}, else_block={self.else_block})'
     
 class IfNode():
     def __init__(self, condition, block):
@@ -193,7 +203,7 @@ class IfNode():
             self.block.evaluate()
 
     def __repr__(self):
-        return f'<__main__.IfNode: condition={self.condition}, block={self.block}'
+        return f'IfNode(condition={self.condition}, block={self.block})'
 
 class BlockNode():
     def __init__(self, statements):
@@ -204,7 +214,7 @@ class BlockNode():
             s.evaluate()
             
     def __repr__(self):
-        return f'<__main__.BlockNode: statements={self.statements}'
+        return f'BlockNode(statements={self.statements})'
 
 
 class WhileNode():
@@ -217,7 +227,7 @@ class WhileNode():
             self.block.evaluate()
 
     def __repr__(self):
-        return f'<__main__.WhileNode: condition={self.condition}, block={self.block}'
+        return f'WhileNode(condition={self.condition}, block={self.block})'
     
 ## Print
 
@@ -230,7 +240,7 @@ class PrintNode():
         print(evaluated)
 
     def __repr__(self):
-        return f'<__main__.PrintNode: expr={self.expr}'
+        return f'PrintNode(expr={self.expr})'
 
 ## Tokens
 
@@ -238,20 +248,24 @@ reserved = {
     'if' : 'IF',
     'else' : 'ELSE',
     'while' : 'WHILE',
-    'print': 'PRINT'
+    'print': 'PRINT',
+    'andalso': 'CONJUNCTIONOP',
+    'orelse': 'DISJUNCTIONOP',
+    'not': 'NOTOP',
+    'in': 'INOP',
+    'div': 'INTDIVOP',
+    'mod': 'MODOP'
  }
 
 tokens = [
-    # 'VARIABLE',
+    'VARIABLE',
     'INTEGER', 'REAL', 'BOOLEAN', 'STRING',
     'LPAREN', 'RPAREN',
     'HASH',
     'LBRACKET', 'RBRACKET',
     'LBRACE', 'RBRACE',
-    'INTDIVOP', 'MULOP', 'EXPOP', 'DIVOP', 'MODOP', 'PLUSOP', 'MINUSOP',
-    'INOP', 'CONSOP',
-    'NOTOP',
-    'CONJUNCTIONOP', 'DISJUNCTIONOP',
+    'MULOP', 'EXPOP', 'DIVOP', 'PLUSOP', 'MINUSOP',
+    'CONSOP',
     'LTOP', 'LTEOP', 'EQOP', 'NEQOP', 'GTEOP', 'GTOP',
     'COMMA', 'SEMICOLON',
     'ASSIGNOP',
@@ -264,14 +278,8 @@ t_RBRACKET = r'\]'
 t_DIVOP = r'\/'
 t_MULOP = r'\*'
 t_EXPOP = r'\*{2}'
-t_INTDIVOP = r'div'
-t_MODOP = r'mod'
 t_PLUSOP = r'\+'
 t_MINUSOP = r'\-'
-t_INOP = r'in'
-t_NOTOP = r'not'
-t_CONJUNCTIONOP = r'andalso'
-t_DISJUNCTIONOP = r'orelse'
 t_LTOP = r'\<'
 t_LTEOP = r'\<\='
 t_EQOP = r'\={2}'
@@ -285,17 +293,14 @@ t_HASH = r'\#'
 t_ASSIGNOP = r'\='
 t_LBRACE = r'\{'
 t_RBRACE = r'\}'
-t_WHILE = r'while'
-t_IF = r'if'
-t_ELSE = r'else'
-t_PRINT = r'print'
 
 t_ignore = ' \t'
 
-# def t_VARIABLE(t):
-#     r'[a-zA-Z][a-zA-Z0-9_]*'
-#     t.value = t.value
-#     return t
+def t_VARIABLE(t):
+    r'[a-zA-Z][a-zA-Z0-9_]*'
+    t.type = reserved.get(t.value, 'VARIABLE')
+    t.value = t.value
+    return t
     
 ## Data types
 
@@ -316,7 +321,7 @@ def t_BOOLEAN(t):
 
 def t_STRING(t):
     r'\'[^\']*\'|\"[^\"]*\"'
-    t.value = t.value[1:-1]
+    t.value = t.value
     return t
 
 def t_newline(t):
@@ -350,7 +355,7 @@ def p_stmts(p):
           | stmt
     '''
     if len(p) == 3:
-        p[0] = [p[1]] + [p[3]]
+        p[0] = [p[1]] + [p[2]]
     if len(p) == 2:
         p[0] = p[1]
 
@@ -372,15 +377,15 @@ def p_while(p):
 
 def p_print(p):
     'stmt : PRINT LPAREN expr RPAREN SEMICOLON'
-    p[0] = PrintNode(ExprNode(p[3]))
-    
+    p[0] = PrintNode(p[3])
     
 def p_paren(p):
     'expr : LPAREN expr RPAREN'
-    p[0] = p[2]
+    p[0] = p[2]        
     
 def p_assign(p):
-    pass
+    'stmt : VARIABLE ASSIGNOP expr SEMICOLON'
+    p[0] = VariableNode(p[1], p[3])
 
 ## Wherever expr leads to... terminals and nested expressions 
     
@@ -390,10 +395,19 @@ def p_term(p):
          | INTEGER
          | REAL
          | BOOLEAN
-         | list
+    '''
+    p[0] = ExprNode(p[1])
+        
+def p_var(p):
+    'expr : VARIABLE'
+    p[0] = ExprNode(p[1])    
+        
+def p_dynamic(p):
+    '''
+    expr : list
          | tup
          | listindex
-         | tupindex
+         | tupindex        
     '''
     p[0] = p[1]
         
@@ -407,7 +421,7 @@ def p_uminus(p):
     'expr : MINUSOP expr %prec UMINUS'
     p[0] = UnaryOpNode(p[2], p[1])     
        
-## Binary operations
+## Binary operations       
        
 def p_binop(p):
     '''
@@ -454,7 +468,6 @@ def p_listitems(p):
               | listitem
     '''
     if len(p) == 2:
-        # convert to actual type node
         p[0] = p[1]
     else:
         p[0] = p[1] + p[3]
@@ -468,13 +481,20 @@ def p_genindex(p):
     listindex : list LBRACKET expr RBRACKET
               | expr LBRACKET expr RBRACKET
     '''
-    is_int_index = type(p[3]) == int
-    if is_int_index and p[3] < 0 or p[3] >= len(p[1]): 
-        raise SemanticError
-    if _valid_types([p[3]], [int]) and _valid_types([p[1]], [list, str]):
-        p[0] = p[1][p[3]]
+    is_int_index = type(p[3].expr) == int
+    if isinstance(p[1], ListNode):
+        if is_int_index and p[3].expr < 0 or p[3].expr >= len(p[1].lst): 
+            raise SemanticError
+        p[0] = BinaryOpNode(p[1], p[3], 'listindex')
         return
+    else:
+        if is_int_index and p[3] < 0 or p[3] >= len(p[1].expr): 
+            raise SemanticError
+        if _valid_types([p[3].expr], [int]) and _valid_types([p[1]], [str]):
+            p[0] = BinaryOpNode(p[1], p[3], 'listindex')
+            return
     raise SemanticError
+
     
 ## Tuples    
     
@@ -515,11 +535,11 @@ def p_tupindex(p):
     if len(p) == 6:
         if p[2] <= 0 or p[2] > len(p[4]):
             raise SemanticError
-        p[0] = p[4][p[2] - 1]
+        p[0] = BinaryOpNode(TupleNode(p[4]), ExprNode(p[2] - 1), 'tupindex')
     else:
         if p[2] <= 0 or p[2] > len(p[3]):
             raise SemanticError
-        p[0] = p[3][p[2] - 1]
+        p[0] = BinaryOpNode(TupleNode(p[3]), ExprNode(p[2] - 1), 'tupindex')
 
 def _valid_types(arguments, types):
     """ Check if all the arguments are in the types list """
@@ -555,29 +575,23 @@ precedence = (
 
 parser = yacc.yacc()
 
-# FOR DEBUGGING PURPOSES
-while True:
-    try:
-        s = input("Enter a proposition: ")
-    except EOFError:
-        break
-    if not s:
-        continue
-    result = parser.parse(s, debug=DEBUG)
-    print(f"RESULT: {result}")
+if len(argv) != 2:
+    print("Expecting filename in argv[1].")
+    sys.exit()
 
 # FOR SUBMISSION
-# if len(argv) != 2:
-#     print("Expecting filename in argv[1].")
-#     sys.exit()
-
 # with open(argv[1], 'r') as file:
-#     for line in file:
-#         try:
-#             result = parser.parse(line, debug=False)
-#             print(result)
-#         except EOFError:
-#             break
-#         except Exception as err:
-#             print(err)
-#             continue
+#     content = file.read()
+#     try: 
+#         result = parser.parse(content, debug=True)
+#         print(f'RESULT: {result}')
+#     except Exception as err:
+#         print(err)
+
+
+# FOR DEBUGGING PURPOSES
+with open(argv[1], 'r') as file:
+    content = file.read()
+    result = parser.parse(content, debug=True)
+    print(result)
+    
