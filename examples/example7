@@ -1,0 +1,10 @@
+{
+    a = "Hello there!";
+    b = True;
+    c = 'Just another string...';
+    d = True andalso False;
+    print(a);
+    print(b);
+    print(c);
+    print(d);
+}

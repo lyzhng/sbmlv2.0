@@ -1,0 +1,11 @@
+{
+    a = True;
+    counter = 0;
+    while (a) {
+        if (counter == 42) {
+            a = False;
+        }
+        print(counter);
+        counter = counter + 1;
+    }
+}
