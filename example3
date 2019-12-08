@@ -1,8 +1,0 @@
-{
-    number = 33;
-    isPrime = 1;
-    i = 2;
-    if (isPrime == 1) {
-        print("isPrime is true");
-    }
-}
