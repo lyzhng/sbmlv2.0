@@ -41,6 +41,10 @@ class ExprNode():
             # TODO what if left single quote and right double quote?
         if isinstance(self.expr, (ListNode, TupleNode)):
             return self.expr.evaluate()
+        if type(self.expr) == BinaryOpNode:
+            return self.expr.evaluate().evaluate()
+        if type(self.expr) == ListAccessNode:
+            return self.expr.evaluate()
         return self.expr
     
     def __repr__(self):
@@ -54,7 +58,6 @@ class VariableNode(ExprNode):
         
     def evaluate(self):
         assignments[self.var_name] = self.value.evaluate()
-        return self.value.evaluate()
         
     def __repr__(self):
         return f'VariableNode(var_name={self.var_name}, value={self.value})'
@@ -140,11 +143,23 @@ class BinaryOpNode(ExprNode):
         elif self.operator == 'listindex':
             return self.operand1.lst[self.operand2.evaluate()]
         elif self.operator == 'tupindex':
-            return self.operand1.tups[self.operand2.evaluate()]
+            return self.operand1.tups[self.operand2]
         raise SemanticError  
 
     def __repr__(self):
         return f'BinaryOpNode(operand1={self.operand1}, operand2={self.operand2}, operator={self.operator})'
+
+
+class ListAccessNode(BinaryOpNode):
+    def __init__(self, var_name, index):
+        super().__init__(var_name, index, 'listindex')
+        
+    def evaluate(self):
+        # var_name is str / ExprNode
+        if self.operand1 in assignments:
+            if type(assignments[self.operand1]) == list:
+                return assignments[self.operand1][self.operand2.evaluate()]
+        raise SemanticError
 
 
 class ComparisonBinaryOpNode(BinaryOpNode):
@@ -238,6 +253,21 @@ class WhileNode():
             
     def __repr__(self):
         return f'WhileNode(condition={self.condition}, block={self.block})'
+    
+    
+class ListAssignNode():
+    def __init__(self, data, index, value):
+        self.data = data
+        self.index = index
+        self.value = value
+        
+    def evaluate(self):
+        if isinstance(self.data, ListNode):
+            self.data.lst[self.index.evaluate()] = self.value.evaluate()
+        else:
+            lst = assignments[self.data]
+            lst[self.index.evaluate()] = self.value.evaluate()
+    
     
 ## Print
 
@@ -473,6 +503,13 @@ def p_comparison(p):
 
 ## Lists
 
+def p_listassign(p):
+    '''
+    stmt : VARIABLE LBRACKET expr RBRACKET ASSIGNOP expr SEMICOLON
+         | list LBRACKET expr RBRACKET ASSIGNOP expr SEMICOLON
+    '''
+    p[0] = ListAssignNode(p[1], p[3], p[6])
+
 def p_list(p):
     '''
     list : LBRACKET listitems RBRACKET
@@ -502,20 +539,31 @@ def p_genindex(p):
     listindex : list LBRACKET expr RBRACKET
               | expr LBRACKET expr RBRACKET
     '''
-    is_int_index = type(p[3].expr) == int
-    if isinstance(p[1], ListNode):
-        if is_int_index and p[3].expr < 0 or p[3].expr >= len(p[1].lst): 
+    print(f'p is: {p[:]}')
+    is_int_index = type(p[3].evaluate()) == int
+    if type(p[1]) == ListNode: # list node
+        if is_int_index and p[3].evaluate() < 0 or p[3].evaluate() >= len(p[1].lst): 
             raise SemanticError
-        p[0] = BinaryOpNode(p[1], p[3], 'listindex')
+        p[0] = ListAccessNode(p[1], p[3])
+        print(p[0])
         return
-    else:
-        if is_int_index and (p[3].expr < 0 or p[3].expr >= len(p[1].expr)): 
+    else: # expr 
+        if is_int_index and (p[3].evaluate() < 0 or p[3].evaluate() >= len(p[1].evaluate())): 
             raise SemanticError
-        if _valid_types([p[3].expr], [int]) and _valid_types([p[1]], [str]):
-            p[0] = BinaryOpNode(p[1], p[3], 'listindex')
+        if _valid_types([p[3].evaluate()], [int]) and _valid_types([p[1].evaluate()], [str, list]):
+            p[0] = ListAccessNode(p[1], p[3])
+            print(f'GEN_INDEX EXPR: {p[0]}')
             return
+    print(type(p[1].evaluate()))
+    print(type(p[3].evaluate()))
     raise SemanticError
 
+
+def p_listindex(p):
+    '''
+    listindex : VARIABLE LBRACKET expr RBRACKET
+    '''
+    p[0] = ListAccessNode(p[1], p[3])
     
 ## Tuples    
     
@@ -554,10 +602,11 @@ def p_tupindex(p):
              | HASH INTEGER tup
     '''
     if len(p) == 6:
+        print(type(p[4]))
         if p[2] <= 0 or p[2] > len(p[4]):
             raise SemanticError
         # TODO, remove TupleNode wrapper?
-        p[0] = BinaryOpNode(TupleNode(p[4]), p[2] - 1, 'tupindex')
+        p[0] = BinaryOpNode(p[4], p[2] - 1, 'tupindex')
     else:
         if p[2] <= 0 or p[2] > len(p[3].tups):
             raise SemanticError
@@ -573,6 +622,7 @@ def _valid_types(arguments, types):
 ## Parsing error
 
 def p_error(p):
+    print(p)
     raise SyntaxError
 
 ## Precedence

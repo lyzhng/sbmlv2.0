@@ -1,0 +1,14 @@
+{
+    data = [
+      [1, 2],
+      [3, 4]  
+    ];
+    print(data[0]);
+    data[0] = 99;
+    print(data[0]);
+    hello = ["hello", "world", "i", "hate", "this", "class"];
+    data = [
+        [1, 2],
+        hello
+    ];
+}
