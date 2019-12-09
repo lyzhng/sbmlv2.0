@@ -5,23 +5,21 @@ import ply.lex as lex
 import ply.yacc as yacc
 from sys import argv
 
-## Exceptions
 
 class SemanticError(RuntimeError):
     def __init__(self):
         super(SemanticError, self).__init__('SEMANTIC ERROR')
 
+
 class SyntaxError(Exception):
     def __init__(self):
         super(SyntaxError, self).__init__('SYNTAX ERROR')
+
         
 DEBUG = len(sys.argv) > 2 and sys.argv[2] == '--debug'
 
-## Globals
-
 assignments = {}
 
-## Classes
 
 class ExprNode():
     def __init__(self, expr):
@@ -33,17 +31,11 @@ class ExprNode():
             double_quote = self.expr.startswith('\"') and self.expr.endswith('\"')
             if single_quote or double_quote: # actual string
                 return self.expr[1:-1]
-            else: # variable
+            elif not single_quote and not double_quote:
                 if self.expr in assignments:
                     return assignments[self.expr]
-                else:
-                    raise SemanticError
-            # TODO what if left single quote and right double quote?
-        if isinstance(self.expr, (ListNode, TupleNode)):
-            return self.expr.evaluate()
-        if type(self.expr) == BinaryOpNode:
-            return self.expr.evaluate().evaluate()
-        if type(self.expr) == ListAccessNode:
+            raise SemanticError
+        if isinstance(self.expr, (ListNode, TupleNode, ListAccessNode)):
             return self.expr.evaluate()
         return self.expr
     
@@ -65,30 +57,25 @@ class VariableNode(ExprNode):
 
 class ListNode(ExprNode):
     def __init__(self, lst):
-        self.lst = lst
+        super().__init__(lst)
     
     def evaluate(self):
-        flattened = []
-        for item in self.lst:
-            flattened.append(item.evaluate())
-        return flattened
+        return [item.evaluate() for item in self.expr]
             
     def __repr__(self):
-        return f'ListNode(lst={self.lst})'
+        return f'ListNode(lst={self.expr})'
 
 
 class TupleNode(ExprNode):
     def __init__(self, tups):
-        self.tups = tups
+        super().__init__(tups)
         
     def evaluate(self):
-        flattened = []
-        for item in self.tups:
-            flattened.append(item.evaluate())
-        return tuple(flattened)
+        return tuple([item.evaluate() for item in self.expr])
 
     def __repr__(self):
-        return f'TupleNode(tups={self.tups})'
+        return f'TupleNode(tups={self.expr})'
+    
     
 class BinaryOpNode(ExprNode):
     def __init__(self, operand1, operand2, operator):
@@ -140,10 +127,6 @@ class BinaryOpNode(ExprNode):
         elif self.operator == '::':
             if _valid_types([self.operand1.evaluate()], [int, float, bool, str, list, tuple]) and _valid_types([self.operand2.evaluate()], [list]):
                return [self.operand1.evaluate()] + self.operand2.evaluate()
-        elif self.operator == 'listindex':
-            return self.operand1.lst[self.operand2.evaluate()]
-        elif self.operator == 'tupindex':
-            return self.operand1.tups[self.operand2]
         raise SemanticError  
 
     def __repr__(self):
@@ -151,15 +134,28 @@ class BinaryOpNode(ExprNode):
 
 
 class ListAccessNode(BinaryOpNode):
-    def __init__(self, var_name, index):
-        super().__init__(var_name, index, 'listindex')
+    def __init__(self, var_name, index, operator):
+        super().__init__(var_name, index, operator)
         
     def evaluate(self):
-        # var_name is str / ExprNode
-        if self.operand1 in assignments:
-            if type(assignments[self.operand1]) == list:
-                return assignments[self.operand1][self.operand2.evaluate()]
+        if type(self.operand1) == str:
+            if self.operand1 in assignments:
+                valid_operand1 = _valid_types([assignments[self.operand1]], [str, tuple, list])
+                valid_operand2 = _valid_types([self.operand2.evaluate()], [int])
+                if valid_operand1 and valid_operand2:
+                    return assignments[self.operand1][self.operand2.evaluate()]
+        if isinstance(self.operand1, ExprNode):
+            valid_operand1 = _valid_types([self.operand1.evaluate()], [str, list, tuple])
+            valid_operand2 = _valid_types([self.operand2.evaluate()], [int])
+            if valid_operand1 and valid_operand2:
+                if self.operand2.evaluate() < 0 or self.operand2.evaluate() >= len(self.operand1.evaluate()):
+                    raise SemanticError
+                lst = self.operand1.evaluate()
+                return lst[self.operand2.evaluate()]
         raise SemanticError
+
+    def __repr__(self):
+        return f'ListAccessNode(operand1={self.operand1}, operand2={self.operand2}, operator={self.operator})'
 
 
 class ComparisonBinaryOpNode(BinaryOpNode):
@@ -185,6 +181,7 @@ class ComparisonBinaryOpNode(BinaryOpNode):
     def __repr__(self):
         return f'ComparisonBinaryOpNode(operand1={self.operand1}, operand2={self.operand2}, operator={self.operator})'
 
+
 class UnaryOpNode(ExprNode):
     def __init__(self, operand, operator):
         self.operand = operand
@@ -209,13 +206,18 @@ class IfElseNode():
         self.else_block = else_block
         
     def evaluate(self):
-        if self.condition.evaluate(): 
-            self.if_block.evaluate()
-        else:
-            self.else_block.evaluate()
+        condition = self.condition.evaluate()
+        if _valid_types([condition], [bool]):
+            if condition:
+                self.if_block.evaluate()
+            else:
+                self.else_block.evaluate()
+            return
+        raise SemanticError
 
     def __repr__(self):
         return f'IfElseNode(condition={self.condition}, if_block={self.if_block}, else_block={self.else_block})'
+    
     
 class IfNode():
     def __init__(self, condition, block):
@@ -223,8 +225,12 @@ class IfNode():
         self.block = block
     
     def evaluate(self):
-        if self.condition.evaluate():
-            self.block.evaluate()
+        condition = self.condition.evaluate()
+        if _valid_types([condition], [bool]):
+            if condition:
+                self.block.evaluate()
+            return
+        raise SemanticError
 
     def __repr__(self):
         return f'IfNode(condition={self.condition}, block={self.block})'
@@ -248,7 +254,9 @@ class WhileNode():
         self.block = block
 
     def evaluate(self):
-        while self.condition.evaluate():
+        if not _valid_types([self.condition.evaluate()], [bool]):
+            raise SemanticError
+        while _valid_types([self.condition.evaluate()], [bool]) and self.condition.evaluate():
             self.block.evaluate()
             
     def __repr__(self):
@@ -263,25 +271,23 @@ class ListAssignNode():
         
     def evaluate(self):
         if isinstance(self.data, ListNode):
-            self.data.lst[self.index.evaluate()] = self.value.evaluate()
+            self.data.evaluate()[self.index.evaluate()] = self.value.evaluate()
         else:
             lst = assignments[self.data]
             lst[self.index.evaluate()] = self.value.evaluate()
     
     
-## Print
-
 class PrintNode():
     def __init__(self, expr):
         self.expr = expr
     
     def evaluate(self):
-        print(self.expr.evaluate())
+        evaluated = self.expr.evaluate()
+        print(evaluated)
 
     def __repr__(self):
         return f'PrintNode(expr={self.expr})'
 
-## Tokens
 
 reserved = {
     'if' : 'IF',
@@ -334,12 +340,8 @@ t_HASH = r'\#'
 t_ASSIGNOP = r'\='
 t_LBRACE = r'\{'
 t_RBRACE = r'\}'
-
 t_ignore = ' \t'
-
     
-## Data types
-
 def t_REAL(t):
     r'(([-]?([0-9]+\.[0-9]*)|([0-9]*\.[0-9]+))([eE][-]?[0-9]+)?)'
     t.value = float(t.value)
@@ -350,16 +352,6 @@ def t_INTEGER(t):
     t.value = int(t.value)
     return t
 
-def t_TRUE(t):
-    r'True'
-    t.value = True
-    return t
-
-def t_FALSE(t):
-    r'False'
-    t.value = False
-    return t
-
 def t_STRING(t):
     r'\'[^\']*\'|\"[^\"]*\"'
     t.value = t.value
@@ -367,26 +359,27 @@ def t_STRING(t):
 
 def t_VARIABLE(t):
     r'[a-zA-Z][a-zA-Z0-9_]*'
-    t.type = reserved.get(t.value, 'VARIABLE')
     t.value = t.value
+    t.type = reserved.get(t.value, 'VARIABLE')
+    if t.value == 'True' or t.value == 'False':
+        t.type = t.value.upper()
+        t.value = t.value == 'True'
     return t
 
 def t_newline(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
 
-## Lexing error
-
 def t_error(t):
+    # lexing error
     t.lexer.skip(1)
     raise SyntaxError
     
 lexer = lex.lex()
-
-## PARSING
     
-## Start statement    
     
+################## LEXING ##################
+        
 def p_start(p):
     'start : block'
     p[0] = p[1]
@@ -413,16 +406,20 @@ def p_stmt(p):
     'stmt : expr SEMICOLON'
     p[0] = p[1]
 
+def p_condition(p):
+    'condition : LPAREN expr RPAREN'
+    p[0] = p[2]
+
 def p_if(p):
-    'stmt : IF expr block'
+    'stmt : IF condition block'
     p[0] = IfNode(p[2], BlockNode(p[3]))
 
 def p_ifelse(p):
-    'stmt : IF expr block ELSE block'
+    'stmt : IF condition block ELSE block'
     p[0] = IfElseNode(p[2], BlockNode(p[3]), BlockNode(p[5]))
 
 def p_while(p):
-    'stmt : WHILE expr block'
+    'stmt : WHILE condition block'
     p[0] = WhileNode(p[2], BlockNode(p[3]))
 
 def p_print(p):
@@ -436,8 +433,6 @@ def p_paren(p):
 def p_assign(p):
     'stmt : VARIABLE ASSIGNOP expr SEMICOLON'
     p[0] = VariableNode(p[1], p[3])
-
-## Wherever expr leads to... terminals and nested expressions 
     
 def p_term(p):
     '''
@@ -461,8 +456,6 @@ def p_dynamic(p):
          | tupindex        
     '''
     p[0] = ExprNode(p[1])
-        
-## Unary operations       
            
 def p_not(p):
     'expr : NOTOP expr'
@@ -470,9 +463,7 @@ def p_not(p):
        
 def p_uminus(p):
     'expr : MINUSOP expr %prec UMINUS'
-    p[0] = UnaryOpNode(p[2], p[1])     
-       
-## Binary operations       
+    p[0] = UnaryOpNode(p[2], p[1])           
        
 def p_binop(p):
     '''
@@ -539,31 +530,12 @@ def p_genindex(p):
     listindex : list LBRACKET expr RBRACKET
               | expr LBRACKET expr RBRACKET
     '''
-    print(f'p is: {p[:]}')
-    is_int_index = type(p[3].evaluate()) == int
-    if type(p[1]) == ListNode: # list node
-        if is_int_index and p[3].evaluate() < 0 or p[3].evaluate() >= len(p[1].lst): 
-            raise SemanticError
-        p[0] = ListAccessNode(p[1], p[3])
-        print(p[0])
-        return
-    else: # expr 
-        if is_int_index and (p[3].evaluate() < 0 or p[3].evaluate() >= len(p[1].evaluate())): 
-            raise SemanticError
-        if _valid_types([p[3].evaluate()], [int]) and _valid_types([p[1].evaluate()], [str, list]):
-            p[0] = ListAccessNode(p[1], p[3])
-            print(f'GEN_INDEX EXPR: {p[0]}')
-            return
-    print(type(p[1].evaluate()))
-    print(type(p[3].evaluate()))
-    raise SemanticError
+    p[0] = ListAccessNode(p[1], p[3], 'listindex')
 
 
 def p_listindex(p):
-    '''
-    listindex : VARIABLE LBRACKET expr RBRACKET
-    '''
-    p[0] = ListAccessNode(p[1], p[3])
+    'listindex : VARIABLE LBRACKET expr RBRACKET'
+    p[0] = ListAccessNode(p[1], p[3], 'listindex')
     
 ## Tuples    
     
@@ -577,7 +549,7 @@ def p_tuple(p):
     elif len(p) == 4:
         p[0] = TupleNode(tuple(p[2]))
     elif len(p[2]) == 1:
-        p[0] = p[2][0]
+        p[0] = ExprNode(p[2][0])
                 
 def p_tupitems(p):
     '''
@@ -594,7 +566,7 @@ def p_tupitems(p):
                 
 def p_tupitem(p):
     'tupitem : expr'
-    p[0] = [(p[1])]
+    p[0] = [p[1]]
     
 def p_tupindex(p):
     '''
@@ -602,15 +574,9 @@ def p_tupindex(p):
              | HASH INTEGER tup
     '''
     if len(p) == 6:
-        print(type(p[4]))
-        if p[2] <= 0 or p[2] > len(p[4]):
-            raise SemanticError
-        # TODO, remove TupleNode wrapper?
-        p[0] = BinaryOpNode(p[4], p[2] - 1, 'tupindex')
+        p[0] = ListAccessNode(p[4], ExprNode(p[2] - 1), 'tupindex')
     else:
-        if p[2] <= 0 or p[2] > len(p[3].tups):
-            raise SemanticError
-        p[0] = BinaryOpNode(p[3], p[2] - 1, 'tupindex')
+        p[0] = ListAccessNode(p[3], ExprNode(p[2] - 1), 'tupindex')
 
 def _valid_types(arguments, types):
     """ Check if all the arguments are in the types list """
@@ -619,14 +585,10 @@ def _valid_types(arguments, types):
             return False
     return True
 
-## Parsing error
-
 def p_error(p):
-    print(p)
     raise SyntaxError
 
-## Precedence
-
+# PRECEDENCE
 precedence = (
     ('left', 'DISJUNCTIONOP'),
     ('left', 'CONJUNCTIONOP'),
@@ -646,22 +608,11 @@ precedence = (
 
 parser = yacc.yacc()
 
-if len(argv) < 2:
-    print("Expecting filename in argv[1].")
-    sys.exit()
-
 # FOR SUBMISSION
-# with open(argv[1], 'r') as file:
-#     try:
-#         content = file.read()
-#         result = parser.parse(content, debug=False))
-#         result.evaluate()
-#     except Exception as err:
-#         print(err)
-
-
-# FOR DEBUGGING PURPOSES
 with open(argv[1], 'r') as file:
-    content = file.read()
-    result = BlockNode(parser.parse(content, debug=DEBUG))
-    result.evaluate()
+    try:
+        content = file.read()
+        result = BlockNode(parser.parse(content, debug=False))
+        result.evaluate()
+    except Exception as err:
+        print(err)
